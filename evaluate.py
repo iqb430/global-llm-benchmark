@@ -1,70 +1,109 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import root_mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold, cross_val_score
+import xgboost as xgb
 import warnings
+
 warnings.filterwarnings('ignore')
 
-DATA_PATH = "dataset.csv"
-
-def print_brutalist_header(text):
-    print(f"\n[{text.upper()}]\n{'='*50}")
-
-def load_data(path: str) -> pd.DataFrame:
-    '''Load dataset murni, buang row NaN buat regresi'''
-    df = pd.read_csv(path)
-    return df.dropna(subset=['context_window', 'api_input_cost_per_1k_usd', 'open_source', 'mmlu_score'])
-
-def analyze_and_predict(df: pd.DataFrame):
-    # 1. CORE INSIGHTS (HARD DATA)
-    print_brutalist_header("Global LLM Matrix: Raw Data")
-    print(f"Total Models       : {len(df)}")
-    print(f"Open Source        : {df['open_source'].sum()}")
-    print(f"Proprietary        : {len(df) - df['open_source'].sum()}")
-
-    # 2. PREDICTIVE ENGINEERING (ML PIPELINE)
-    # Target: mmlu_score
-    # Features: context_window, input_cost, open_source (bool to int)
+# === BRUTALIST HUD ===
+class HUD:
+    CYAN = '\033[96m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
+    RESET = '\033[0m'
     
-    df['open_source_int'] = df['open_source'].astype(int)
-    X = df[['context_window', 'api_input_cost_per_1k_usd', 'open_source_int']]
+    @staticmethod
+    def header(text):
+        print(f"\n{HUD.RED}[::] {text.upper()} [::]{HUD.RESET}\n{HUD.CYAN}{'='*60}{HUD.RESET}")
+
+def engineer_features(df: pd.DataFrame) -> tuple:
+    HUD.header("Phase 1: Feature Engineering & Mechanics")
+    initial_len = len(df)
+    
+    # Drop rows without targets
+    df = df.dropna(subset=['mmlu_score', 'context_window']).copy()
+    
+    # 1. Non-Linear Feature Construction
+    df['log_context'] = np.log1p(df['context_window'])
+    df['avg_cost'] = (df['api_input_cost_per_1k_usd'] + df['api_output_cost_per_1k_usd']) / 2
+    df['is_open_source'] = df['open_source'].astype(int)
+    
+    # Efficiency matrix: penalize high cost, heavily reward context+score
+    df['cognitive_density'] = df['mmlu_score'] / np.log1p(df['context_window'])
+    df['cost_penalty'] = np.where(df['avg_cost'] > 0, 1 / (df['avg_cost'] + 1e-6), 1e6) 
+    
+    features = ['log_context', 'avg_cost', 'is_open_source', 'cognitive_density']
+    X = df[features]
     y = df['mmlu_score']
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    rf_model.fit(X_train, y_train)
-    y_pred = rf_model.predict(X_test)
-
-    # 3. METRICS EVALUATION
-    r2 = r2_score(y_test, y_pred)
-    rmse = root_mean_squared_error(y_test, y_pred)
     
-    print_brutalist_header("Machine Learning Analytics (Random Forest)")
-    print(f"Target Feature     : MMLU Score")
-    print(f"Train/Test Split   : 80/20")
-    print(f"R-Squared (R2)     : {r2:.4f} (Accuracy variance)")
-    print(f"RMSE               : {rmse:.4f} (Error margin)")
-    
-    # Feature Importance
-    importances = rf_model.feature_importances_
-    print("\n[FEATURE IMPORTANCE]")
-    for feature, imp in zip(X.columns, importances):
-        print(f"{feature:<25} : {imp:.4f}")
+    print(f"Data Purged      : {initial_len - len(df)} ghost rows deleted.")
+    print(f"Feature Space    : {X.shape[1]} dimensional matrix constructed.")
+    return X, y, df
 
-    # 4. PRAGMATIC RECOMMENDATIONS
-    print_brutalist_header("Cost-Cognition Efficiency")
-    # Cari model paling over-performing dengan cost terendah
-    df['efficiency_ratio'] = df['mmlu_score'] / ((df['api_input_cost_per_1k_usd'] + df['api_output_cost_per_1k_usd'])/2 + 1e-6)
+def train_ensemble_engine(X, y):
+    HUD.header("Phase 2: Ensemble ML Engine (Cross-Validation)")
     
-    top_efficient = df.nlargest(3, 'efficiency_ratio')
-    print("Top 3 Elite Performers / Free (Self-Hosted):")
-    for _, row in top_efficient.iterrows():
-        print(f"-> {row['model_name']:<15} | Provider: {row['provider']:<10} | MMLU: {row['mmlu_score']} | Efisiensi: Sangat Tinggi")
-
-    print("\n[SYSTEM] Halted. Evaluasi Mekanik Selesai.")
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Construct models
+    models = {
+        'XGBoost': xgb.XGBRegressor(n_estimators=150, max_depth=4, learning_rate=0.05, random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(n_estimators=150, random_state=42),
+        'Random Forest': RandomForestRegressor(n_estimators=150, random_state=42)
+    }
+    
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    
+    print(f"{'MODEL':<20} | {'CV R2 SCORE (MEAN)':<20} | {'VOLATILITY (STD)':<15}")
+    print("-" * 60)
+    
+    best_model_name = ""
+    best_score = -float('inf')
+    best_model = None
+    
+    for name, model in models.items():
+        scores = cross_val_score(model, X_scaled, y, cv=kf, scoring='r2')
+        mean_score = scores.mean()
+        std_score = scores.std()
+        print(f"{HUD.YELLOW}{name:<20}{HUD.RESET} | {mean_score:>18.4f} | {std_score:>15.4f}")
+        
+        if mean_score > best_score:
+            best_score = mean_score
+            best_model_name = name
+            best_model = model
+            
+    print(f"\n[*] Apex Engine Selected: {best_model_name} (Accuracy: {best_score:.4f})")
+    
+    # Fit the best model on full data for feature importance
+    best_model.fit(X_scaled, y)
+    
+    HUD.header("Phase 3: Structural Subconscious (Feature Weights)")
+    importances = best_model.feature_importances_
+    for col, imp in sorted(zip(X.columns, importances), key=lambda x: x[1], reverse=True):
+        bar = "█" * int(imp * 30)
+        print(f"{col:<20} | {imp:.4f} | {HUD.CYAN}{bar}{HUD.RESET}")
+    
+def map_anomalies(df):
+    HUD.header("Phase 4: Anomaly Detection (Value Outliers)")
+    
+    # Normalized efficiency score purely for mathematical ranking
+    df['raw_value'] = (df['mmlu_score'] * df['log_context']) / (df['avg_cost'] + 1e-4)
+    outliers = df.nlargest(3, 'raw_value')
+    
+    print("Top 3 Market Disruptors (High Cognition, Zero/Low Cost):")
+    for _, row in outliers.iterrows():
+        cost_str = "FREE" if row['avg_cost'] == 0 else f"${row['avg_cost']:.4f}"
+        print(f"[-] {row['model_name']:<15} (Provider: {row['provider']:<10}) -> MMLU: {row['mmlu_score']:<5} | Cost: {cost_str}")
 
 if __name__ == "__main__":
-    df = load_data(DATA_PATH)
-    analyze_and_predict(df)
+    import os
+    os.system('clear')
+    df = pd.read_csv("dataset.csv")
+    X, y, clean_df = engineer_features(df)
+    train_ensemble_engine(X, y)
+    map_anomalies(clean_df)
+    print(f"\n{HUD.RED}[SYSTEM HALTED]{HUD.RESET}\n")
