@@ -53,7 +53,7 @@ def orchestrate():
 
         print("[+] QA ngetes jalanin codenya (Subprocess)...")
         test_logs = run_subprocess("python evaluate_sandbox.py")
-        sys_qa = "Lu QA Agent galak. Benci AI Slop. Periksa log terminal hasil eksekusi code. Kalo error atau bahasanya cringe/AI banget, REJECT. Kalo mulus, ketik PASS."
+        sys_qa = "Lu QA Agent galak. Benci filler AI. Periksa log terminal hasil eksekusi code. Kalo error atau bahasanya cringe/AI banget, REJECT. Kalo mulus, ketik PASS."
         qa_result = call_agent("QA (TESTER)", sys_qa, f"Execution Logs:\n{test_logs}")
         print(f"QA RESULT:\n{qa_result}")
         
