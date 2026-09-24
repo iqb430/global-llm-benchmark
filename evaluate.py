@@ -23,15 +23,12 @@ def engineer_features(df: pd.DataFrame) -> tuple:
     HUD.header("Phase 1: Feature Engineering & Mechanics")
     initial_len = len(df)
     
-    # Drop rows without targets
     df = df.dropna(subset=['mmlu_score', 'context_window']).copy()
     
-    # 1. Non-Linear Feature Construction
     df['log_context'] = np.log1p(df['context_window'])
     df['avg_cost'] = (df['api_input_cost_per_1k_usd'] + df['api_output_cost_per_1k_usd']) / 2
     df['is_open_source'] = df['open_source'].astype(int)
     
-    # Efficiency matrix: penalize high cost, heavily reward context+score
     df['cognitive_density'] = df['mmlu_score'] / np.log1p(df['context_window'])
     df['cost_penalty'] = np.where(df['avg_cost'] > 0, 1 / (df['avg_cost'] + 1e-6), 1e6) 
     
@@ -49,7 +46,6 @@ def train_ensemble_engine(X, y):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Construct models
     models = {
         'XGBoost': xgb.XGBRegressor(n_estimators=150, max_depth=4, learning_rate=0.05, random_state=42),
         'Gradient Boosting': GradientBoostingRegressor(n_estimators=150, random_state=42),
@@ -78,7 +74,6 @@ def train_ensemble_engine(X, y):
             
     print(f"\n[*] Apex Engine Selected: {best_model_name} (Accuracy: {best_score:.4f})")
     
-    # Fit the best model on full data for feature importance
     best_model.fit(X_scaled, y)
     
     HUD.header("Phase 3: Structural Subconscious (Feature Weights)")
@@ -90,7 +85,6 @@ def train_ensemble_engine(X, y):
 def map_anomalies(df):
     HUD.header("Phase 4: Anomaly Detection (Value Outliers)")
     
-    # Normalized efficiency score purely for mathematical ranking
     df['raw_value'] = (df['mmlu_score'] * df['log_context']) / (df['avg_cost'] + 1e-4)
     outliers = df.nlargest(3, 'raw_value')
     

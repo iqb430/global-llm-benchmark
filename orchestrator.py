@@ -4,12 +4,8 @@ import json
 import textwrap
 from openai import OpenAI
 
-# Brutalist Multi-Agent Orchestrator
-# Looping: Strategist -> Coder -> QA -> C-Level
-# Memaksa AI buat ngebongkar dan ngebenerin script evaluate.py secara otomatis.
-
-client = OpenAI() # Pake env variable OPENAI_API_KEY (atau arahin base_url ke local LLM/vLLM)
-MODEL = "gpt-4o-mini" # Ganti kalo pake local model
+client = OpenAI()
+MODEL = "gpt-4o-mini"
 
 def call_agent(role: str, system_prompt: str, user_prompt: str) -> str:
     print(f"\n[+] {role} lagi mikir...")
@@ -41,25 +37,20 @@ def orchestrate():
     for i in range(MAX_LOOPS):
         print(f"\n{'='*50}\n[ITERATION {i+1}/{MAX_LOOPS}]\n{'='*50}")
         
-        # 1. STRATEGIST
         sys_strategist = "Lu Data Scientist brutal. Cari kelemahan script analisis LLM. Output SATU paragraf RFI (Room for Improvement) konkrit."
         rfi = call_agent("STRATEGIST", sys_strategist, f"Code saat ini:\n{current_code}\n\nFeedback iterasi kemaren:\n{feedback}")
         print(f"RFI:\n{rfi}")
 
-        # 2. CODER
         sys_coder = "Lu Senior Python Engineer. Berdasarkan RFI, ubah/tulis ulang kode Python-nya. HANYA OUTPUT FULL CODE [PYTHON], gak usah bacot. Jangan pake em-dash."
         new_code = call_agent("CODER (EXECUTION)", sys_coder, f"RFI:\n{rfi}\n\nCode lawas:\n{current_code}")
-        # Strip markdown fences
         if "```python" in new_code:
             new_code = new_code.split("```python")[1].split("```")[0].strip()
         
-        # Tulis ke sandbox
         with open("evaluate_sandbox.py", "w") as f:
             f.write(new_code)
             
         print("[+] Code di-update di evaluate_sandbox.py")
 
-        # 3. QA
         print("[+] QA ngetes jalanin codenya (Subprocess)...")
         test_logs = run_subprocess("python evaluate_sandbox.py")
         sys_qa = "Lu QA Agent galak. Benci AI Slop. Periksa log terminal hasil eksekusi code. Kalo error atau bahasanya cringe/AI banget, REJECT. Kalo mulus, ketik PASS."
@@ -70,7 +61,6 @@ def orchestrate():
             feedback = f"QA Nolak. Benerin codenya. Alasan QA: {qa_result}\nLogs: {test_logs}"
             continue
 
-        # 4. C-LEVEL
         sys_c_level = "Lu C-Level Judge. Style lu Dostoevsky x BMO. Cek apa code dan hasil ini 'Portfolio Worthy' (Brutalist, mekanik kuat, gak murahan). Kalo puas, jawab mutlak 'APPROVED'. Kalo sampah, reject dengan alasan detail."
         c_level_verdict = call_agent("C-LEVEL", sys_c_level, f"Code:\n{new_code}\n\nExecution Logs:\n{test_logs}")
         print(f"C-LEVEL VERDICT:\n{c_level_verdict}")
