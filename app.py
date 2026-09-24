@@ -5,7 +5,6 @@ import plotly.express as px
 
 st.set_page_config(page_title="LLM Benchmark Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# Brutalist Styling
 st.markdown("""
 <style>
     .reportview-container { background: #000000; color: #00FF00; font-family: 'Courier New', Courier, monospace; }
