@@ -5,7 +5,6 @@ Proprietary AI is an illusion sold via subscriptions. The data proves it.
 I built this **LLM Performance Prediction** engine to strip away marketing syntax and evaluate 37 state-of-the-art models in the **Global LLM Benchmark Dataset (2024-2026)**. By mapping API Cost, Context Windows, and Open Source flags against raw cognition scores (MMLU, GSM8K), we expose the actual cost-to-intelligence ratio of the AI industry.
 
 **Architect:** [Iqbal Anwar](https://github.com/iqb430) | AI Developer & Karate Coach
-**Portfolio:** [iqb.anwarr's C-Level System](https://iqb430.github.io)  *(Ganti sama tautan portfolio asli lu)*
 
 ## Framework & Tech Stack
 - **Dataset:** `sumitchavhan7/global-llm-benchmark-dataset-2024-2026` via Kaggle.
