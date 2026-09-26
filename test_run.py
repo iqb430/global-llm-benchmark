@@ -1,0 +1,12 @@
+from evaluate import Benchmarker, HUD
+print("Starting")
+b = Benchmarker("dataset.csv")
+print("Loading data")
+df = b.load_data()
+print("Data loaded, eng. features")
+X, y, clean_df = b.engineer_features(df)
+print("Features engineered, training ensemble")
+b.train_ensemble_engine(X, y)
+print("Ensemble trained mapping anomalies")
+b.map_anomalies(clean_df)
+print("Done")

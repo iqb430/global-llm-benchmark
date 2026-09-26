@@ -151,7 +151,6 @@ class Benchmarker:
         self.map_anomalies(clean_df)
 
 if __name__ == "__main__":
-    os.system('clear')
     dataset_path = os.path.join(os.path.dirname(__file__), "dataset.csv")
     benchmarker = Benchmarker(dataset_path)
     try:
